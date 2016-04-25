@@ -3,7 +3,7 @@ var fixture;
 function loadFixture(path) {  
   var html;
   jQuery.ajax({
-    url: '/index.html',
+    url: path,
     success: function(result) {
       html = result;
     },
