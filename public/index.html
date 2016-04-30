@@ -10,6 +10,8 @@
     <script src='https://code.jquery.com/jquery-2.1.4.min.js'></script>
     <script src='/vendor.js'></script>
     <script src='/app.js'></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="371804249112-h9o4bu2ph9r8ndoi5nqj0jdiq3ljh8lg.apps.googleusercontent.com"/>
     <style type="text/css" media="all">
       body { 
         margin-top: 60px; 
@@ -51,6 +53,14 @@
       .text-lg {
         font-size: 200%;
       }
+      .navbar-padding {
+        padding-top: 7px;
+        display: inline-block;
+      }
+      .navbar-padding-lg {
+        padding-top: 7px;
+        display: inline-block;
+      }
     </style>
   </head>
   
@@ -65,6 +75,11 @@
             <a href="#problem-1">Start</a>
           </li>
         </ul>
+        <div class="four columns signin-bar">
+          <span class="navbar-padding u-pull-right">
+            <span class="g-signin2" data-onsuccess="googleSignIn"></span>
+          </span>
+        </div>
       </div>
       <div class='view-container container'></div>
       <div class="templates">
@@ -99,6 +114,13 @@
         <li class="skip-btn">
           <a>Skip this problem</a>
         </li>
+        <div class="profile-view">
+          <h3>Your Profile</h3>
+          <div class="email">TestEmail</div>
+        </div>
+        <div class="profile-link navbar-padding-lg">
+          <a href="#profile"></a>
+        </div>
       </div>
     </div>
     <script type="text/javascript">
