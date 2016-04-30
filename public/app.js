@@ -1,7 +1,5 @@
 'use strict';
 
-
-
 var learnjs = {
 	poolId: "us-east-1:93307603-2dc4-479f-9f25-6f984d17a558"
 };
@@ -21,18 +19,18 @@ learnjs.dataBind =function(obj, elm) {
 	for (var key in obj) {
 		elm.find("[data-name=" + key + "]").text(obj[key]);
 	}
-}
+};
 
 learnjs.flashElement = function(elem, content) {
 	elem.fadeOut("fast", function() {
 		elem.html(content);
 		elem.fadeIn();
 	});
-}
+};
 
 learnjs.template = function(name) {
 	return $(".templates ." + name).clone();
-}
+};
 
 learnjs.buildCorrectFlash = function(problemNumber) {
 	var text = learnjs.template("correct-flash");
@@ -45,11 +43,11 @@ learnjs.buildCorrectFlash = function(problemNumber) {
 		link.text("You're finished!");
 	}
 	return text;
-}
+};
 
 learnjs.landingView = function() {
 	return learnjs.template("landing-view");
-}
+};
 
 learnjs.problemView = function (data) {
 	var problemNumber = parseInt(data, 10);
@@ -68,6 +66,7 @@ learnjs.problemView = function (data) {
 		var text;
 		if (checkAnswer()) {
 			text = learnjs.buildCorrectFlash(problemNumber);
+			learnjs.saveAnswer(problemNumber, view.find(".answer").val());
 		} else {
 			text = learnjs.template("incorrect-flash");
 		}
@@ -89,23 +88,33 @@ learnjs.problemView = function (data) {
 		});
 	}
 	
+
+	learnjs.fetchAnswer(problemNumber).then(function(data) {
+		if (data.Item) {
+			var ans = data.Item.answer;
+			if (ans) {
+				view.find(".answer").val(ans);
+			}
+		}
+	});
+			
 	return view;
-}
+};
 
 learnjs.profileView = function() {
 	var view = learnjs.template("profile-view");
 	learnjs.identity.done(function(identity) {
 		view.find(".email").text(identity.email);
-	})
+	});
 	return view;
-}
+};
 
 learnjs.addProfileLink = function(profile) {
 	var link = learnjs.template("profile-link");
 	link.find("a").text(profile.email);
 	var signinBar = $(".signin-bar");
 	signinBar.prepend(link);
-}
+};
 
 learnjs.showView = function (hash) {
 	var routes = {
@@ -122,19 +131,19 @@ learnjs.showView = function (hash) {
 		learnjs.triggerEvent("removingView", []);
 		$('.view-container').empty().append(viewFn(hashParts[1]));
 	}
-}
+};
 
 learnjs.appOnReady = function () {
 	window.onhashchange = function () {
 		learnjs.showView(window.location.hash);
-	}
+	};
 	learnjs.showView(window.location.hash);
 	learnjs.identity.done(learnjs.addProfileLink);
-}
+};
 
 learnjs.triggerEvent = function(name, args) {
 	$('.view-container>*').trigger(name, args);
-}
+};
 
 
 
@@ -150,7 +159,7 @@ learnjs.awsRefresh = function() {
 	});
 	
 	return deferred.promise();
-}
+};
 
 learnjs.identity = new $.Deferred();
 
@@ -164,7 +173,7 @@ function googleSignIn(googleUser) {
 			creds.params.Logins['accounts.google.com'] = newToken;
 			return learnjs.awsRefresh();
 		});
-	}
+	};
 	
 	var id_token = googleUser.getAuthResponse().id_token;
 	AWS.config.update({
@@ -183,5 +192,68 @@ function googleSignIn(googleUser) {
 			email: googleUser.getBasicProfile().getEmail(),
 			refresh: refresh
 		})
-	})
-}
+	});
+};
+
+learnjs.sendDbRequest = function(req, retry) {
+	
+	var promise = $.Deferred();
+	
+	req.on("error", function(error) {
+		if (error.code === "CredentialsError") {
+			learnjs.identity.then(function(identity) {
+				return identity.refresh.then(function() {
+					return retry();
+				}, function() {
+					promise.reject(resp);
+				})
+			})
+		} else {
+			promise.reject(error);
+		}
+	});
+	
+	req.on("success", function(resp) {
+		promise.resolve(resp.data);
+	});
+	
+	req.send();
+	
+	return promise;
+};
+
+
+learnjs.saveAnswer = function(problemId, answer) {
+	return learnjs.identity.then(function(identity) {
+		var db= new AWS.DynamoDB.DocumentClient();
+		var item= {
+			TableName: "learnjs",
+			Item: {
+				userId: identity.id,
+				problemId: problemId,
+				answer: answer
+			}
+		};
+		return learnjs.sendDbRequest(db.put(item), function() {
+			return learnjs.saveAnswer(problemId, answer);
+		});
+	});
+};
+
+
+learnjs.fetchAnswer = function(problemId) {
+
+	return learnjs.identity.then(function(identity) {
+		var db = new AWS.DynamoDB.DocumentClient();
+		var item = {
+			TableName: "learnjs",
+			Key: {
+				userId: identity.id,
+				problemId: problemId
+			}
+		};
+		return learnjs.sendDbRequest(db.get(item), function() {
+			return learnjs.fetchAnswer(problemId);
+		});
+	});
+};
